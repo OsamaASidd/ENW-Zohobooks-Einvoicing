@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.4cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1a1a1a; }
+  table { border-collapse: collapse; width: 100%; }
+  .head td { vertical-align: top; }
+  .cn-title { font-size: 26pt; color: #222; }
+  .cn-num { color: #666; font-size: 9pt; }
+  .wordmark { font-size: 16pt; font-weight: bold; color: #102a4e; text-align: right; }
+  .wordmark .oil { color: #c0212b; }
+  .company .nm { font-weight: bold; font-size: 9pt; text-align: right; }
+  .credits { background-color: #f4f6f8; padding: 8px; margin-top: 14px; }
+  .credits .lbl { font-size: 8pt; color: #555; }
+  .credits .val { font-size: 14pt; font-weight: bold; }
+  .meta td { font-size: 8pt; vertical-align: top; padding-top: 12px; }
+  .right { text-align: right; }
+  .center { text-align: center; }
+  .items th { background-color: #2b2b2b; color: #fff; padding: 5px; font-size: 8pt; text-align: left; }
+  .items td { border-bottom: 0.5pt solid #ccc; padding: 5px; font-size: 8pt; }
+  .totals td { padding: 4px 5px; font-size: 8pt; }
+  .totals .lbl { text-align: right; }
+  .totals .grand td { background-color: #f4f6f8; font-weight: bold; }
+  .nrs { border: 1pt solid #102a4e; margin-top: 14px; }
+  .nrs td { padding: 8px; font-size: 8pt; vertical-align: middle; }
+  .nrs .lbl { font-weight: bold; color: #102a4e; font-size: 9pt; }
+  .sign { padding-top: 40px; font-size: 8pt; }
+  .toolbar { background: #f4f6f8; padding: 10px; margin-bottom: 12px; }
+  .toolbar a, .toolbar button { padding: 7px 14px; text-decoration: none; border: 1px solid #ccc;
+      border-radius: 4px; background: #fff; color: #222; font-size: 13px; cursor: pointer; }
+  .toolbar .primary { background: #102a4e; color: #fff; border-color: #102a4e; }
+</style>
+</head>
+<body>
+  {% if web %}
+  <div class="toolbar">
+    <a class="primary" href="/{{ plural }}/{{ zoho_id }}/pdf">Download PDF</a>
+    <button onclick="window.print()">Print</button>
+    <a href="/{{ plural }}">&larr; Back</a>
+  </div>
+  {% endif %}
+
+  <table class="head">
+    <tr>
+      <td style="width:60%">
+        <div class="cn-title">CREDIT NOTE</div>
+        <div class="cn-num">Credit Note {{ number }}</div>
+      </td>
+      <td>
+        <div class="wordmark">RICHARDS<span class="oil">O</span>N</div>
+        <div class="company"><div class="nm">{{ company.name }}</div></div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="credits">
+    <tr><td><div class="lbl">Credits Remaining</div>
+      <div class="val">{{ doc.currency_code }}{{ '{:,.2f}'.format(doc.balance|float) }}</div></td></tr>
+  </table>
+
+  <table class="meta">
+    <tr>
+      <td style="width:60%">
+        Credit Date : {{ doc.date_formatted or doc.date }}<br>
+        Po : {{ doc.reference_number or '-' }}
+      </td>
+      <td class="right">
+        <span style="color:#666">Bill To</span><br>
+        <b>{{ doc.customer_name }}</b>
+      </td>
+    </tr>
+  </table>
+
+  <table class="items" style="margin-top:14px;">
+    <tr>
+      <th style="width:6%">#</th><th>Item &amp; Description</th>
+      <th style="width:14%" class="right">Qty</th><th style="width:18%" class="right">Rate</th><th style="width:20%" class="right">Amount</th>
+    </tr>
+    {% for it in doc.line_items %}
+    <tr>
+      <td>{{ loop.index }}</td>
+      <td>{{ it.name or it.description }}</td>
+      <td class="right">{{ '{:,.2f}'.format(it.quantity|float) }}</td>
+      <td class="right">{{ '{:,.2f}'.format(it.rate|float) }}</td>
+      <td class="right">{{ '{:,.2f}'.format(it.item_total|float) }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+
+  <table class="totals" style="margin-top:10px;">
+    <tr><td style="width:55%">Items in Total {{ '{:,.2f}'.format(items_total_qty) }}</td><td class="lbl">Sub Total</td><td class="right" style="width:22%">{{ '{:,.2f}'.format(doc.sub_total|float) }}</td></tr>
+    <tr><td></td><td class="lbl">Adjustment</td><td class="right">{{ '(-) {:,.2f}'.format(doc.adjustment|float|abs) if doc.adjustment else '0.00' }}</td></tr>
+    <tr class="grand"><td></td><td class="lbl">Total</td><td class="right">{{ doc.currency_code }}{{ '{:,.2f}'.format(doc.total|float) }}</td></tr>
+    <tr class="grand"><td></td><td class="lbl">Credits Remaining</td><td class="right">{{ doc.currency_code }}{{ '{:,.2f}'.format(doc.balance|float) }}</td></tr>
+  </table>
+
+  <table class="nrs">
+    <tr>
+      <td style="width:70%">
+        <div class="lbl">NRS E-INVOICE (FIRS)</div>
+        IRN: {{ nrs.irn }}<br>
+        Status: {{ nrs.status }}<br>
+        Submitted: {{ nrs.posted_at }}
+      </td>
+      <td class="center" style="width:30%">
+        {% if nrs.qr_uri %}<img src="{{ nrs.qr_uri }}" style="width:120px; height:120px;">{% else %}<i>QR unavailable</i>{% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <div class="sign">Authorized Signature ____________________________</div>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Finance Dashboard{% endblock %} - ENW Construction Limited</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="/" class="brand">ENW <span>CONSTRUCTION</span> - Finance</a>
+      <nav>
+        <a href="/invoices" class="{{ 'active' if active_tab == 'invoices' else '' }}">Invoices</a>
+        <a href="/creditnotes" class="{{ 'active' if active_tab == 'creditnotes' else '' }}">Credit Notes</a>
+        <a href="/debitnotes" class="{{ 'active' if active_tab == 'debitnotes' else '' }}">Debit Notes</a>
+        <a href="/nrs/errors" class="{{ 'active' if active_tab == 'errors' else '' }}">NRS Errors</a>
+      </nav>
+      <div class="sync">
+        <button id="sync-now" title="Pull the latest from Zoho now">&#8635; Sync Now</button>
+        <span class="sync-info">
+          Last synced: <b id="sync-last">{{ last_synced or '—' }}</b>
+          · auto in <span id="sync-countdown">--:--</span>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    (function () {
+      const INTERVAL = {{ sync_interval_seconds | default(600) }};
+      const btn = document.getElementById('sync-now');
+      const cd = document.getElementById('sync-countdown');
+      let remaining = INTERVAL;
+
+      function doSync() {
+        btn.disabled = true;
+        btn.textContent = 'Syncing…';
+        // Reloading re-fetches live from Zoho and updates the server-side
+        // last-synced timestamp shown above.
+        location.reload();
+      }
+      btn.addEventListener('click', doSync);
+
+      setInterval(function () {
+        remaining -= 1;
+        if (remaining <= 0) {
+          // Don't yank the page out from under someone typing in a field.
+          const el = document.activeElement;
+          const busy = el && ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName);
+          if (!busy) { doSync(); return; }
+          remaining = 30; // retry shortly
+        }
+        const m = Math.floor(remaining / 60), s = remaining % 60;
+        cd.textContent = m + ':' + String(s).padStart(2, '0');
+      }, 1000);
+    })();
+  </script>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

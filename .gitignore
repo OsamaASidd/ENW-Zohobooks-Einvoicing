@@ -1,0 +1,24 @@
+# Secrets / local environment (contain Zoho + NRS credentials)
+.env
+**/.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Local database & backups (regenerated at runtime)
+*.db
+*.db.bak
+
+# Logs
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

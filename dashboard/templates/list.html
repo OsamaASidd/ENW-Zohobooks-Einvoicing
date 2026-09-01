@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}{{ doc_label }}{% endblock %}
+{% block content %}
+  <div class="list-header">
+    <h1>{{ doc_label }}</h1>
+    <form class="filters" method="get">
+      <input type="text" name="q" placeholder="Search {{ doc_label|lower }}..." value="{{ q or '' }}">
+      <select name="status">
+        <option value="">All statuses</option>
+        {% for s in statuses %}
+          <option value="{{ s }}" {{ 'selected' if status_filter == s else '' }}>{{ s|capitalize }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Filter</button>
+    </form>
+  </div>
+
+  {% if error %}
+    <div class="banner banner-error">{{ error }}</div>
+  {% endif %}
+
+  <div class="bulk-bar">
+    <button type="button" class="btn btn-primary" id="bulk-submit" disabled>Post selected to NRS (<span id="bulk-count">0</span>)</button>
+    <a class="btn" href="/nrs/errors">View all NRS errors</a>
+  </div>
+
+  <table class="data-table" data-doc-type="{{ doc_type_singular }}">
+    <thead>
+      <tr>
+        <th class="col-check"><input type="checkbox" id="select-all"></th>
+        {% for col in columns %}<th>{{ col.label }}</th>{% endfor %}
+        <th>NRS</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in rows %}
+        <tr data-id="{{ row.get(id_key) }}">
+          <td class="col-check"><input type="checkbox" name="ids" value="{{ row.get(id_key) }}" class="row-check"></td>
+          {% for col in columns %}
+            <td class="{{ 'num' if col.numeric else '' }}">
+              {%- if col.key == 'status' -%}
+                <span class="badge badge-{{ row.get('status', '') }}">{{ row.get('status', '')|capitalize }}</span>
+              {%- elif col.money -%}
+                {{ row.get('currency_code', 'NGN') }} {{ '{:,.2f}'.format(row.get(col.key, 0)|float) }}
+              {%- else -%}
+                {{ row.get(col.key, '') }}
+              {%- endif -%}
+            </td>
+          {% endfor %}
+          {% set st = nrs_states.get(row.get(id_key)|string) %}
+          <td class="nrs-cell">
+            {% if st and st.status == 'posted' %}
+              <span class="nrs-ok">Posted &check;</span>
+              <div class="nrs-irn">{{ st.irn }}</div>
+              <div class="nrs-actions">
+                <a class="btn btn-small" href="/{{ doc_type }}/{{ row.get(id_key) }}/view" target="_blank">View</a>
+                <a class="btn btn-small btn-primary" href="/{{ doc_type }}/{{ row.get(id_key) }}/pdf">Download PDF</a>
+                <a class="btn btn-small btn-code" href="/{{ doc_type }}/{{ row.get(id_key) }}/payload/request" target="_blank" title="View request payload">&lt;/&gt; Request</a>
+                <a class="btn btn-small btn-code" href="/{{ doc_type }}/{{ row.get(id_key) }}/payload/response" target="_blank" title="View NRS response">&lt;/&gt; Response</a>
+              </div>
+              <div class="nrs-when">{{ st.submitted_at }}</div>
+            {% elif st and st.status == 'error' %}
+              <button type="button" class="btn btn-small btn-primary post-btn">Retry</button>
+              <div class="nrs-status">
+                <span class="nrs-err">Error</span>
+                <div class="nrs-err-detail">{{ st.error_message }}</div>
+                <div class="nrs-actions">
+                  <a class="btn btn-small btn-code" href="/{{ doc_type }}/{{ row.get(id_key) }}/payload/request" target="_blank" title="View request payload">&lt;/&gt; Request</a>
+                  <a class="btn btn-small btn-code" href="/{{ doc_type }}/{{ row.get(id_key) }}/payload/response" target="_blank" title="View NRS response">&lt;/&gt; Response</a>
+                </div>
+                <div class="nrs-when">{{ st.submitted_at }}</div>
+              </div>
+            {% else %}
+              <button type="button" class="btn btn-small btn-primary post-btn">Post</button>
+              <div class="nrs-status"></div>
+            {% endif %}
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="{{ columns|length + 2 }}" class="empty">No {{ doc_label|lower }} found.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="pagination">
+    {% if page_context.get('page', 1)|int > 1 %}
+      <a href="?page={{ page_context.get('page', 1)|int - 1 }}&status={{ status_filter or '' }}&q={{ q or '' }}">&laquo; Previous</a>
+    {% endif %}
+    <span>Page {{ page_context.get('page', 1) }}</span>
+    {% if page_context.get('has_more_page') %}
+      <a href="?page={{ page_context.get('page', 1)|int + 1 }}&status={{ status_filter or '' }}&q={{ q or '' }}">Next &raquo;</a>
+    {% endif %}
+  </div>
+
+  <script>
+    const DOC_TYPE = document.querySelector('.data-table').dataset.docType;
+    const selectAll = document.getElementById('select-all');
+    const bulkSubmit = document.getElementById('bulk-submit');
+    const bulkCount = document.getElementById('bulk-count');
+
+    function rowChecks() { return Array.from(document.querySelectorAll('.row-check')); }
+
+    function updateBulkBar() {
+      bulkCount.textContent = rowChecks().filter(c => c.checked).length;
+      bulkSubmit.disabled = rowChecks().filter(c => c.checked).length === 0;
+    }
+
+    const PLURAL = DOC_TYPE + 's';
+    function setStatus(tr, outcome, detail) {
+      const cell = tr.querySelector('.nrs-status');
+      const btn = tr.querySelector('.post-btn');
+      const id = tr.dataset.id;
+      const codeBtns =
+        `<a class="btn btn-small btn-code" href="/${PLURAL}/${id}/payload/request" target="_blank">&lt;/&gt; Request</a>` +
+        `<a class="btn btn-small btn-code" href="/${PLURAL}/${id}/payload/response" target="_blank">&lt;/&gt; Response</a>`;
+      if (outcome === 'posted') {
+        if (btn) btn.remove();
+        cell.innerHTML =
+          `<span class="nrs-ok">Posted &check;</span>` +
+          `<div class="nrs-irn">${detail}</div>` +
+          `<div class="nrs-actions">` +
+          `<a class="btn btn-small" href="/${PLURAL}/${id}/view" target="_blank">View</a> ` +
+          `<a class="btn btn-small btn-primary" href="/${PLURAL}/${id}/pdf">Download PDF</a>` +
+          codeBtns +
+          `</div>`;
+      } else {
+        cell.innerHTML =
+          `<span class="nrs-err">Error</span><div class="nrs-err-detail">${detail}</div>` +
+          `<div class="nrs-actions">${codeBtns}</div>`;
+        if (btn) { btn.disabled = false; btn.textContent = 'Retry'; }
+      }
+    }
+
+    async function postIds(ids) {
+      const body = new URLSearchParams();
+      body.append('doc_type', DOC_TYPE);
+      ids.forEach(id => body.append('ids', id));
+      const trById = {};
+      ids.forEach(id => {
+        const tr = document.querySelector(`tr[data-id="${id}"]`);
+        trById[id] = tr;
+        tr.querySelector('.nrs-status').innerHTML = '<span class="nrs-pending">Posting...</span>';
+        tr.querySelector('.post-btn').disabled = true;
+      });
+      try {
+        const resp = await fetch('/nrs/post', { method: 'POST', body });
+        const data = await resp.json();
+        (data.results || []).forEach(r => setStatus(trById[r.zoho_id], r.outcome, r.detail));
+      } catch (e) {
+        ids.forEach(id => setStatus(trById[id], 'error', 'Network error: ' + e));
+      }
+    }
+
+    selectAll.addEventListener('change', () => {
+      rowChecks().forEach(c => c.checked = selectAll.checked);
+      updateBulkBar();
+    });
+    document.querySelector('tbody').addEventListener('change', (e) => {
+      if (e.target.classList.contains('row-check')) updateBulkBar();
+    });
+    document.querySelector('tbody').addEventListener('click', (e) => {
+      if (e.target.classList.contains('post-btn')) {
+        postIds([e.target.closest('tr').dataset.id]);
+      }
+    });
+    bulkSubmit.addEventListener('click', () => {
+      const ids = rowChecks().filter(c => c.checked).map(c => c.value);
+      if (ids.length && confirm(`Post ${ids.length} ${'{{ doc_label|lower }}'} to NRS?`)) postIds(ids);
+    });
+  </script>
+{% endblock %}

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 1.4cm; }
+  body { font-family: Helvetica, Arial, sans-serif; font-size: 9pt; color: #1a1a1a; }
+  .bar { background-color: #102a4e; height: 6px; }
+  table { border-collapse: collapse; width: 100%; }
+  .head td { vertical-align: top; padding-top: 8px; }
+  .wordmark { font-size: 20pt; font-weight: bold; color: #102a4e; }
+  .wordmark .oil { color: #c0212b; }
+  .subwm { font-size: 8pt; color: #c0212b; letter-spacing: 2px; }
+  .company { text-align: right; font-size: 8pt; }
+  .company .nm { font-weight: bold; color: #102a4e; font-size: 10pt; }
+  .meta td { font-size: 8pt; vertical-align: top; padding-top: 10px; }
+  .title { text-align: center; font-weight: bold; text-decoration: underline; font-size: 12pt; padding: 10px 0 6px; }
+  .items th { background-color: #eef1f5; border: 0.5pt solid #333; padding: 4px; font-size: 8pt; }
+  .items td { border: 0.5pt solid #333; padding: 4px; font-size: 8pt; }
+  .right { text-align: right; }
+  .center { text-align: center; }
+  .tot td { font-weight: bold; text-align: right; }
+  .tot .lbl { text-align: right; }
+  .grand td { background-color: #f4f6f8; }
+  .words { text-transform: uppercase; font-size: 8pt; padding-top: 8px; }
+  .nrs { border: 1pt solid #102a4e; margin-top: 10px; }
+  .nrs td { padding: 8px; font-size: 8pt; vertical-align: middle; }
+  .nrs .lbl { font-weight: bold; color: #102a4e; font-size: 9pt; }
+  .bank { font-size: 8pt; padding-top: 12px; }
+  .toolbar { background: #f4f6f8; padding: 10px; margin-bottom: 12px; }
+  .toolbar a, .toolbar button { padding: 7px 14px; text-decoration: none; border: 1px solid #ccc;
+      border-radius: 4px; background: #fff; color: #222; font-size: 13px; cursor: pointer; }
+  .toolbar .primary { background: #102a4e; color: #fff; border-color: #102a4e; }
+</style>
+</head>
+<body>
+  {% if web %}
+  <div class="toolbar">
+    <a class="primary" href="/{{ plural }}/{{ zoho_id }}/pdf">Download PDF</a>
+    <button onclick="window.print()">Print</button>
+    <a href="/{{ plural }}">&larr; Back</a>
+  </div>
+  {% endif %}
+
+  <div class="bar"></div>
+  <table class="head">
+    <tr>
+      <td style="width:55%">
+        <div class="wordmark">RICHARDS<span class="oil">O</span>N</div>
+        <div class="subwm">OIL &amp; GAS</div>
+      </td>
+      <td class="company">
+        <div class="nm">{{ company.name }}</div>
+        {% for l in company.address_lines %}<div>{{ l }}</div>{% endfor %}
+        <div>T. {{ company.phone }}</div>
+        <div>E. {{ company.email }}</div>
+        <div>W. {{ company.website }}</div>
+      </td>
+    </tr>
+  </table>
+
+  <table class="meta">
+    <tr>
+      <td style="width:55%">
+        The Purchasing Department,<br>
+        <b>{{ doc.customer_name }}</b>
+      </td>
+      <td class="right">
+        TAX ID NUMBER: {{ company.tax_id }}<br>
+        VAT NO: {{ company.vat_no }}<br>
+        PURCHASE ORDER NO: {{ doc.reference_number or '-' }}<br>
+        {{ title }} NO: {{ number }}<br>
+        DATE: {{ doc.date_formatted or doc.date }}
+      </td>
+    </tr>
+  </table>
+
+  <div class="title">{{ title }}</div>
+
+  <table class="items">
+    <tr>
+      <th style="width:8%">LINE</th><th>DESCRIPTION</th><th style="width:9%">QTY</th>
+      <th style="width:10%">UOM</th><th style="width:16%">UNIT PRICE (N)</th><th style="width:16%">TOTAL PRICE (N)</th>
+    </tr>
+    {% for it in doc.line_items %}
+    <tr>
+      <td class="center">{{ loop.index }}</td>
+      <td>{{ it.name or it.description }}</td>
+      <td class="center">{{ '{:,.0f}'.format(it.quantity|float) }}</td>
+      <td class="center">{{ it.unit or '' }}</td>
+      <td class="right">{{ '{:,.2f}'.format(it.rate|float) }}</td>
+      <td class="right">{{ '{:,.2f}'.format(it.item_total|float) }}</td>
+    </tr>
+    {% endfor %}
+    <tr class="tot"><td colspan="5" class="lbl">SUB TOTAL</td><td class="right">{{ '{:,.2f}'.format(doc.sub_total|float) }}</td></tr>
+    <tr class="tot"><td colspan="5" class="lbl">VAT{% if vat_percentage %} @ {{ vat_percentage }}%{% endif %}</td><td class="right">{{ '{:,.2f}'.format(doc.tax_total|float) }}</td></tr>
+    <tr class="tot grand"><td colspan="5" class="lbl">GRAND TOTAL</td><td class="right">{{ doc.currency_code }} {{ '{:,.2f}'.format(doc.total|float) }}</td></tr>
+  </table>
+
+  <div class="words"><b>AMOUNT IN WORDS:</b> {{ amount_in_words }}</div>
+
+  <table class="nrs">
+    <tr>
+      <td style="width:70%">
+        <div class="lbl">NRS E-INVOICE (FIRS)</div>
+        IRN: {{ nrs.irn }}<br>
+        Status: {{ nrs.status }}<br>
+        Submitted: {{ nrs.posted_at }}
+      </td>
+      <td class="center" style="width:30%">
+        {% if nrs.qr_uri %}<img src="{{ nrs.qr_uri }}" style="width:120px; height:120px;">{% else %}<i>QR unavailable</i>{% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <div class="bank">
+    <b>NAIRA BANK DETAILS:</b><br>
+    BANK NAME: {{ company.bank_name }}<br>
+    A/C NUMBER: {{ company.bank_account_number }}<br>
+    ACCOUNT NAME: {{ company.bank_account_name }}<br><br>
+    FOR: {{ company.name }}<br><br><br>
+    __________________________<br>
+    {{ company.signatory_name }}
+  </div>
+</body>
+</html>

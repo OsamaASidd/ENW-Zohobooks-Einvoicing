@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}NRS Errors{% endblock %}
+{% block content %}
+  <div class="list-header">
+    <h1>NRS Submission Errors</h1>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>When</th><th>Type</th><th>Document</th><th>Customer</th><th>Error</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in errors %}
+        <tr>
+          <td>{{ e.occurred_at }}</td>
+          <td>{{ e.doc_type }}</td>
+          <td>{{ e.document_identifier or e.zoho_id }}</td>
+          <td>{{ e.customer_name }}</td>
+          <td>{{ e.error_message }}</td>
+          <td class="actions">
+            <a class="btn btn-small" href="/{{ e.doc_type }}s">Go to {{ e.doc_type }}s</a>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="empty">No errors logged.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}
